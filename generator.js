@@ -1,291 +1,249 @@
 const $ = id => document.getElementById(id);
 
-const outputs = [
-    {
-        group: "apache",
-        checkbox: "hasDevHttp",
-        filename: "{{devHost}}.conf",
-        template: "tpl-dev-http"
-    },
-    {
-        group: "apache",
-        checkbox: "hasStagingHttp",
-        requiresStaging: true,
-        filename: "{{stagingHost}}.conf",
-        template: "tpl-staging-http"
-    },
-    {
-        group: "apache",
-        checkbox: "hasStagingSsl",
-        requiresStaging: true,
-        filename: "{{stagingHost}}-le-ssl.conf",
-        template: "tpl-staging-ssl"
-    },
-    {
-        group: "apache",
-        checkbox: "hasProdSsl",
-        filename: "{{domain}}-le-ssl.conf",
-        template: "tpl-prod-ssl"
-    },
-    {
-        group: "release",
-        checkbox: "hasReleaseCommands",
-        filename: "{{domain}}-release-commands.sh",
-        template: "tpl-release-commands"
-    }
+const vhosts = [
+  {
+    checkbox: "hasDevHttp",
+    needsStaging: false,
+    name: "{{devHost}}.conf",
+    template: "tpl-dev-http"
+  },
+  {
+    checkbox: "hasStagingHttp",
+    needsStaging: true,
+    name: "{{stagingHost}}.conf",
+    template: "tpl-staging-http"
+  },
+  {
+    checkbox: "hasStagingSsl",
+    needsStaging: true,
+    name: "{{stagingHost}}-le-ssl.conf",
+    template: "tpl-staging-ssl"
+  },
+  {
+    checkbox: "hasProdSsl",
+    needsStaging: false,
+    name: "{{domain}}-le-ssl.conf",
+    template: "tpl-prod-ssl"
+  }
 ];
 
 function cleanHost(value) {
-    return value.trim().toLowerCase().replace(/^\.+|\.+$/g, "");
-}
-
-function cleanPrefix(value) {
-    return value.trim().toLowerCase().replace(/^\.+|\.+$/g, "");
+  return value.trim().toLowerCase().replace(/^\.+|\.+$/g, "");
 }
 
 function cleanPath(value) {
-    const trimmed = value.trim();
-    if (trimmed === "/") {
-        return "/";
-    }
-    return trimmed.replace(/\/+$/g, "");
+  const path = value.trim();
+  return path === "/" ? "/" : path.replace(/\/+$/g, "");
 }
 
-function cleanToken(value) {
-    return value.trim();
+function todayVersion() {
+  const date = new Date();
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}_001`;
+}
+
+function validLabel(label) {
+  return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label);
+}
+
+function validHostname(host) {
+  return host.split(".").length > 1 && host.split(".").every(validLabel);
 }
 
 function selected(id) {
-    return $(id).checked;
+  return $(id).checked;
 }
 
-function todayReleaseVersion() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-
-    return `${year}-${month}-${day}_001`;
+function rawModel() {
+  return {
+    domain: cleanHost($("domain").value),
+    stagingPrefix: cleanHost($("stagingPrefix").value),
+    devSuffix: cleanHost($("devSuffix").value),
+    webRoot: cleanPath($("webRoot").value),
+    apacheSites: cleanPath($("apacheSites").value),
+    apacheLogs: cleanPath($("apacheLogs").value),
+    apacheBadhat: cleanPath($("apacheBadhat").value),
+    apacheCreds: cleanPath($("apacheCreds").value),
+    repo: $("repo").value.trim(),
+    gitRef: $("gitRef").value.trim(),
+    version: $("version").value.trim()
+  };
 }
 
-function setDefaultReleaseVersion() {
-    if (!$('version').value.trim()) {
-        $('version').value = todayReleaseVersion();
+function derivedModel(model) {
+  const prodRoot = `${model.webRoot}/${model.domain}.prod`;
+  const releaseRoot = `${model.webRoot}/${model.domain}.releases`;
+  const releasePath = `${releaseRoot}/${model.version}`;
+  const stagingRoot = model.stagingPrefix
+    ? `${model.webRoot}/${model.domain}.${model.stagingPrefix}`
+    : "";
+  const stagingHost = model.stagingPrefix
+    ? `${model.stagingPrefix}.${model.domain}`
+    : "";
+  const devRoot = `${model.webRoot}/${model.domain}`;
+  const devHost = `${model.domain}.${model.devSuffix}`;
+
+  return {
+    ...model,
+    prodRoot,
+    releaseRoot,
+    releasePath,
+    stagingRoot,
+    stagingHost,
+    devRoot,
+    devHost,
+    serverAliases: selected("hasWww") ? `    ServerAlias www.${model.domain}` : "",
+    stagingRelease: model.stagingPrefix
+      ? `sudo ln -sfnT "${releasePath}" "${stagingRoot}"\n`
+      : "",
+    stagingCheck: model.stagingPrefix
+      ? `readlink -f "${stagingRoot}"\ncurl -I "http://${stagingHost}/"\n`
+      : ""
+  };
+}
+
+function validate(model) {
+  const errors = [];
+
+  if (!validHostname(model.domain)) {
+    errors.push(["domain", "Production domain must be a valid hostname."]);
+  }
+
+  if (!validLabel(model.devSuffix)) {
+    errors.push(["devSuffix", "Dev suffix is required and must be one valid DNS label."]);
+  }
+
+  if (model.stagingPrefix && !validLabel(model.stagingPrefix)) {
+    errors.push(["stagingPrefix", "Staging prefix may be empty, or one valid DNS label."]);
+  }
+
+  ["webRoot", "apacheSites", "apacheLogs", "apacheBadhat", "apacheCreds"].forEach(id => {
+    if (!model[id].startsWith("/")) {
+      errors.push([id, `${id} must be an absolute path.`]);
     }
-}
+  });
 
-function siteConfig() {
-    const domain = cleanHost($("domain").value);
-    const stagingPrefix = cleanPrefix($("stagingPrefix").value);
-    const devPrefix = cleanPrefix($("devPrefix").value);
-    const webRoot = cleanPath($("webRoot").value);
-    const apacheSites = cleanPath($("apacheSites").value);
-    const apacheLogs = cleanPath($("apacheLogs").value);
-    const apacheBadhat = cleanPath($("apacheBadhat").value);
-    const apacheCreds = cleanPath($("apacheCreds").value);
-    const repo = cleanToken($("repo").value);
-    const gitRef = cleanToken($("gitRef").value);
-    const version = cleanToken($("version").value);
-
-    return {
-        domain,
-        stagingPrefix,
-        devPrefix,
-        repo,
-        gitRef,
-        version,
-        webRoot,
-        apacheSites,
-        apacheLogs,
-        apacheBadhat,
-        apacheCreds,
-        releaseRoot: `${webRoot}/${domain}.releases`,
-        releasePath: `${webRoot}/${domain}.releases/${version}`,
-        prodRoot: `${webRoot}/${domain}.prod`,
-        stagingRoot: `${webRoot}/${domain}.${stagingPrefix}`,
-        devRoot: `${webRoot}/${domain}`,
-        stagingHost: `${stagingPrefix}.${domain}`,
-        devHost: `${devPrefix}.${domain}`,
-        stagingReleaseCommands: stagingPrefix ? `# Point staging to the release\nsudo ln -sfnT "${webRoot}/${domain}.releases/${version}" "${webRoot}/${domain}.${stagingPrefix}"\nsudo apache2ctl configtest\nsudo systemctl reload apache2\n\n` : "",
-        stagingTargetCheck: stagingPrefix ? `readlink -f "${webRoot}/${domain}.${stagingPrefix}"` : "",
-        stagingHostCheck: stagingPrefix ? `curl -I "http://${stagingPrefix}.${domain}/"\n` : "",
-        serverAliases: selected("hasWww") ? `    ServerAlias www.${domain}` : ""
-    };
-}
-
-function validationRules(data) {
-    const rules = [
-        ["domain", "Production domain must be a valid hostname, for example liebrex.net.", /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/],
-        ["devPrefix", "Dev prefix is required and must contain only letters, numbers and hyphens.", /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/],
-        ["webRoot", "Web root must be an absolute path.", /^\/.+/],
-        ["apacheSites", "Apache sites-available path must be absolute.", /^\/.+/],
-        ["apacheLogs", "Apache logs path must be absolute.", /^\/.+/],
-        ["apacheBadhat", "BADHAT Apache includes path must be absolute.", /^\/.+/],
-        ["apacheCreds", "Credentials includes path must be absolute.", /^\/.+/]
-    ];
-
-    if (data.stagingPrefix && !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(data.stagingPrefix)) {
-        rules.push(["stagingPrefix", "Staging prefix may be empty. When present, it must contain only letters, numbers and hyphens.", /^$/]);
+  if (selected("hasReleaseCommands")) {
+    if (!model.repo) errors.push(["repo", "Git repository is required."]);
+    if (!model.gitRef) errors.push(["gitRef", "Git ref is required."]);
+    if (!/^[a-zA-Z0-9._-]+$/.test(model.version)) {
+      errors.push(["version", "Release version may only contain letters, numbers, dots, underscores and hyphens."]);
     }
+  }
 
-    if (selected("hasReleaseCommands")) {
-        rules.push(["repo", "Git repository is required for release commands.", /^\S+$/]);
-        rules.push(["gitRef", "Git ref is required for release commands.", /^\S+$/]);
-        rules.push(["version", "Release version must use only letters, numbers, dots, underscores and hyphens.", /^[a-zA-Z0-9._-]+$/]);
-    }
-
-    return rules.filter(rule => !rule[2].test(data[rule[0]]));
+  return errors;
 }
 
-function applyValidationState(errors) {
-    document.querySelectorAll("input").forEach(input => input.classList.remove("error"));
-
-    for (const error of errors) {
-        const input = $(error[0]);
-        if (input) {
-            input.classList.add("error");
-        }
-    }
-
-    if (errors.length === 0) {
-        $("validation").innerHTML = "";
-        return;
-    }
-
-    $("validation").innerHTML = `
-        <div class="errors">
-            <strong>Fix before using generated files</strong>
-            <ul>
-                ${errors.map(error => `<li>${escapeHtml(error[1])}</li>`).join("")}
-            </ul>
-        </div>
-    `;
+function template(id) {
+  return $(id).content.textContent.trim();
 }
 
-function templateText(id) {
-    return $(id).content.textContent.trim();
-}
-
-function fill(template, data) {
-    return template.replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (match, key) => {
-        return Object.hasOwn(data, key) ? data[key] : match;
-    });
-}
-
-function fileList(data) {
-    return outputs
-        .filter(item => selected(item.checkbox))
-        .filter(item => !item.requiresStaging || Boolean(data.stagingPrefix))
-        .map(item => {
-            return {
-                group: item.group,
-                name: fill(item.filename, data),
-                content: fill(templateText(item.template), data) + "\n"
-            };
-        });
+function fill(text, data) {
+  return text.replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (_, key) => data[key] ?? "");
 }
 
 function escapeHtml(value) {
-    return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;");
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
-function download(filename, text) {
-    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+function files(data) {
+  const apacheFiles = vhosts
+    .filter(vhost => selected(vhost.checkbox))
+    .filter(vhost => !vhost.needsStaging || data.stagingPrefix)
+    .map(vhost => ({
+      name: fill(vhost.name, data),
+      content: fill(template(vhost.template), data) + "\n"
+    }));
 
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
+  const releaseFiles = selected("hasReleaseCommands")
+    ? [{
+        name: `${data.domain}-release-commands.sh`,
+        content: fill(template("tpl-release"), data) + "\n"
+      }]
+    : [];
 
-    a.remove();
-    URL.revokeObjectURL(url);
+  return [...apacheFiles, ...releaseFiles];
 }
 
-function renderFileGroup(files, title) {
-    if (files.length === 0) {
-        return "";
-    }
+function renderValidation(errors) {
+  document.querySelectorAll("input").forEach(input => input.classList.remove("error"));
 
-    return `
-        <h2 class="group-title">${escapeHtml(title)}</h2>
-        ${files.map((file, index) => `
-            <article class="file">
-                <h2>
-                    <span>${escapeHtml(file.name)}</span>
-                    <button type="button" data-download="${file.group}:${index}">Download</button>
-                </h2>
-                <pre><code>${escapeHtml(file.content)}</code></pre>
-            </article>
-        `).join("")}
-    `;
+  errors.forEach(([id]) => {
+    const input = $(id);
+    if (input) input.classList.add("error");
+  });
+
+  $("validation").innerHTML = errors.length
+    ? `<div class="errors"><strong>Fix before using generated files</strong><ul>${errors.map(error => `<li>${escapeHtml(error[1])}</li>`).join("")}</ul></div>`
+    : "";
+}
+
+function renderSummary(data) {
+  const staging = data.stagingPrefix
+    ? `staging: <code>http://${escapeHtml(data.stagingHost)}</code> → <code>${escapeHtml(data.stagingRoot)}/public</code><br>`
+    : `staging: <em>not generated</em><br>`;
+
+  $("summary").innerHTML = `
+    <strong>Generated model</strong><br>
+    dev: <code>http://${escapeHtml(data.devHost)}</code> → <code>${escapeHtml(data.devRoot)}/public</code><br>
+    ${staging}
+    prod: <code>https://${escapeHtml(data.domain)}</code> → <code>${escapeHtml(data.prodRoot)}/public</code>
+  `;
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text);
+}
+
+function renderOutput(fileList) {
+  $("output").innerHTML = fileList.map((file, index) => `
+    <article class="file">
+      <h2>
+        <span>${escapeHtml(file.name)}</span>
+        <button type="button" data-copy="${index}">Copy</button>
+      </h2>
+      <pre><code>${escapeHtml(file.content)}</code></pre>
+    </article>
+  `).join("");
+
+  document.querySelectorAll("[data-copy]").forEach(button => {
+    button.addEventListener("click", () => {
+      copyText(fileList[Number(button.dataset.copy)].content);
+      button.textContent = "Copied";
+      setTimeout(() => button.textContent = "Copy", 900);
+    });
+  });
 }
 
 function render() {
-    const data = siteConfig();
-    const errors = validationRules(data);
+  const base = rawModel();
+  const errors = validate(base);
 
-    applyValidationState(errors);
+  renderValidation(errors);
 
-    if (errors.length > 0) {
-        $("summary").innerHTML = "";
-        $("apacheOutput").innerHTML = "";
-        $("releaseOutput").innerHTML = "";
-        return [];
-    }
+  if (errors.length) {
+    $("summary").innerHTML = "";
+    $("output").innerHTML = "";
+    return;
+  }
 
-    const files = fileList(data);
-    const apacheFiles = files.filter(file => file.group === "apache");
-    const releaseFiles = files.filter(file => file.group === "release");
-    const stagingScheme = selected("hasStagingSsl") ? "https" : "http";
-
-    const stagingLine = data.stagingPrefix
-        ? `staging: <code>${stagingScheme}://${escapeHtml(data.stagingHost)}</code> → <code>${escapeHtml(data.stagingRoot)}/public</code><br>`
-        : `staging: <em>not generated; staging prefix is empty</em><br>`;
-
-    $("summary").innerHTML = `
-        <strong>Model</strong><br>
-        dev: <code>http://${escapeHtml(data.devHost)}</code> → <code>${escapeHtml(data.devRoot)}/public</code><br>
-        ${stagingLine}
-        prod: <code>https://${escapeHtml(data.domain)}</code> → <code>${escapeHtml(data.prodRoot)}/public</code>
-    `;
-
-    $("apacheOutput").innerHTML = renderFileGroup(apacheFiles, "Apache vhost files");
-    $("releaseOutput").innerHTML = renderFileGroup(releaseFiles, "Release, Git and server work");
-
-    const grouped = {
-        apache: apacheFiles,
-        release: releaseFiles
-    };
-
-    document.querySelectorAll("[data-download]").forEach(button => {
-        button.addEventListener("click", () => {
-            const [group, index] = button.dataset.download.split(":");
-            const file = grouped[group][Number(index)];
-            download(file.name, file.content);
-        });
-    });
-
-    return files;
+  const data = derivedModel(base);
+  renderSummary(data);
+  renderOutput(files(data));
 }
 
-$("generate").addEventListener("click", render);
-
-$("downloadAll").addEventListener("click", () => {
-    for (const file of render()) {
-        download(file.name, file.content);
-    }
-});
-
-setDefaultReleaseVersion();
+if (!$("version").value.trim()) {
+  $("version").value = todayVersion();
+}
 
 document.querySelectorAll("input").forEach(input => {
-    input.addEventListener("input", render);
-    input.addEventListener("change", render);
+  input.addEventListener("input", render);
+  input.addEventListener("change", render);
 });
 
 render();

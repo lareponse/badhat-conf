@@ -1,222 +1,109 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>BADHAT Apache Site Generator</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="./terminal.css">
-</head>
-<body>
 <main>
-    <h1>BADHAT Apache Site Generator</h1>
+  <h1>BADHAT Apache Site Generator</h1>
+  <p>Apache vhost generator. Environment-agnostic. No <code>SetEnv BADHAT_MODE</code>.</p>
 
-    <p>Generates Apache vhost files: production HTTPS only, staging/dev HTTP, no <code>Define</code>, no <code>${SITE}</code>, no <code>${ROOT}</code>, no <code>/var/www/html</code>.</p>
+  <form>
+    <fieldset>
+      <legend>Site</legend>
 
-    <form>
-        <fieldset>
-            <legend>Site and hosts</legend>
+      <label>
+        Production domain
+        <input id="domain" type="text" value="liebrex.net" spellcheck="false">
+      </label>
 
-            <div class="input-grid">
-                <label>
-                    Production domain
-                    <input id="domain" type="text" value="liebrex.net" spellcheck="false" autocomplete="off">
-                </label>
+      <label>
+        Staging prefix
+        <input id="stagingPrefix" type="text" value="test" spellcheck="false">
+      </label>
 
-                <label>
-                    Staging prefix
-                    <input id="stagingPrefix" type="text" value="test" spellcheck="false" autocomplete="off">
-                </label>
+      <label>
+        Dev suffix
+        <input id="devSuffix" type="text" value="p-p" spellcheck="false">
+      </label>
 
-                <label>
-                    Dev prefix
-                    <input id="devPrefix" type="text" value="p-p" spellcheck="false" autocomplete="off">
-                </label>
-            </div>
+      <label class="check">
+        <input id="hasWww" type="checkbox" checked>
+        www alias for production
+      </label>
+    </fieldset>
 
-            <p>
-                <label>
-                    <input id="hasWww" type="checkbox" checked>
-                    www
-                </label>
-            </p>
-        </fieldset>
+    <fieldset>
+      <legend>Paths</legend>
 
-        <fieldset>
-            <legend>Apache paths</legend>
+      <label>
+        Web root
+        <input id="webRoot" type="text" value="/var/www" spellcheck="false">
+      </label>
 
-            <div class="input-grid">
-                <label>
-                    Web root
-                    <input id="webRoot" type="text" value="/var/www" spellcheck="false" autocomplete="off">
-                </label>
+      <label>
+        Apache sites-available
+        <input id="apacheSites" type="text" value="/etc/apache2/sites-available" spellcheck="false">
+      </label>
 
-                <label>
-                    Apache sites-available
-                    <input id="apacheSites" type="text" value="/etc/apache2/sites-available" spellcheck="false" autocomplete="off">
-                </label>
+      <label>
+        Apache logs
+        <input id="apacheLogs" type="text" value="/var/log/apache2" spellcheck="false">
+      </label>
 
-                <label>
-                    Apache logs
-                    <input id="apacheLogs" type="text" value="/var/log/apache2" spellcheck="false" autocomplete="off">
-                </label>
+      <label>
+        BADHAT includes
+        <input id="apacheBadhat" type="text" value="/etc/apache2/badhat" spellcheck="false">
+      </label>
 
-                <label>
-                    BADHAT Apache includes
-                    <input id="apacheBadhat" type="text" value="/etc/apache2/badhat" spellcheck="false" autocomplete="off">
-                </label>
+      <label>
+        Credentials includes
+        <input id="apacheCreds" type="text" value="/etc/apache2/creds-available" spellcheck="false">
+      </label>
+    </fieldset>
 
-                <label>
-                    Credentials includes
-                    <input id="apacheCreds" type="text" value="/etc/apache2/creds-available" spellcheck="false" autocomplete="off">
-                </label>
-            </div>
-        </fieldset>
+    <fieldset>
+      <legend>Files</legend>
 
-        <fieldset>
-            <legend>Apache vhost files</legend>
+      <label class="check"><input id="hasDevHttp" type="checkbox" checked> Dev HTTP</label>
+      <label class="check"><input id="hasStagingHttp" type="checkbox" checked> Staging HTTP</label>
+      <label class="check"><input id="hasStagingSsl" type="checkbox"> Staging HTTPS</label>
+      <label class="check"><input id="hasProdSsl" type="checkbox" checked> Production HTTPS</label>
+    </fieldset>
 
-            <div class="checks">
-                <label><input id="hasDevHttp" type="checkbox" checked> Dev HTTP</label>
-                <label><input id="hasStagingHttp" type="checkbox" checked> Staging HTTP</label>
-                <label><input id="hasStagingSsl" type="checkbox"> Staging HTTPS</label>
-                <label><input id="hasProdSsl" type="checkbox" checked> Production HTTPS</label>
-            </div>
-        </fieldset>
+    <fieldset>
+      <legend>Release</legend>
 
-        <fieldset>
-            <legend>Release, Git and server work</legend>
+      <label>
+        Git repository
+        <input id="repo" type="text" value="git@github.com:amstram-creation/liebrex.net.git" spellcheck="false">
+      </label>
 
-            <div class="input-grid">
-                <label>
-                    Git repository
-                    <input id="repo" type="text" value="git@github.com:amstram-creation/liebrex.net.git" spellcheck="false" autocomplete="off">
-                </label>
+      <label>
+        Git ref
+        <input id="gitRef" type="text" value="main" spellcheck="false">
+      </label>
 
-                <label>
-                    Git ref
-                    <input id="gitRef" type="text" value="main" spellcheck="false" autocomplete="off">
-                </label>
+      <label>
+        Release version
+        <input id="version" type="text" spellcheck="false">
+      </label>
 
-                <label>
-                    Release version
-                    <input id="version" type="text" spellcheck="false" autocomplete="off">
-                </label>
-            </div>
+      <label class="check">
+        <input id="hasReleaseCommands" type="checkbox" checked>
+        Release commands
+      </label>
+    </fieldset>
+  </form>
 
-            <p class="note">This section only affects generated release commands. It does not affect Apache vhost generation.</p>
-
-            <div class="checks">
-                <label><input id="hasReleaseCommands" type="checkbox" checked> Release commands</label>
-            </div>
-        </fieldset>
-
-        <div class="actions">
-            <button id="generate" type="button">Generate</button>
-            <button id="downloadAll" type="button">Download all</button>
-        </div>
-    </form>
-
-    <div id="validation"></div>
-    <div class="summary" id="summary"></div>
-
-    <section id="apacheOutput"></section>
-    <section id="releaseOutput"></section>
+  <div id="validation"></div>
+  <section id="summary"></section>
+  <section id="output"></section>
 </main>
-
-<template id="tpl-prod-ssl"># {{apacheSites}}/{{domain}}-le-ssl.conf
-
-&lt;IfModule mod_ssl.c&gt;
-&lt;VirtualHost *:443&gt;
-    ServerName {{domain}}
-{{serverAliases}}
-    DocumentRoot {{prodRoot}}/public
-
-    ErrorLog {{apacheLogs}}/{{domain}}-prod-ssl-error.log
-    CustomLog {{apacheLogs}}/{{domain}}-prod-ssl-access.log combined
-
-    SetEnv BADHAT_MODE prod
-
-    php_admin_value open_basedir "{{prodRoot}}/app/:{{prodRoot}}/add/:{{prodRoot}}/public/:/tmp/"
-
-    Include {{apacheCreds}}/{{domain}}.conf
-    Include {{apacheBadhat}}/badhat-common.conf
-
-    &lt;Directory "{{prodRoot}}/public"&gt;
-        Include {{apacheBadhat}}/badhat-directory.conf
-    &lt;/Directory&gt;
-
-    Include /etc/letsencrypt/options-ssl-apache.conf
-    SSLCertificateFile /etc/letsencrypt/live/{{domain}}/fullchain.pem
-    SSLCertificateKeyFile /etc/letsencrypt/live/{{domain}}/privkey.pem
-&lt;/VirtualHost&gt;
-&lt;/IfModule&gt;
-</template>
-
-<template id="tpl-staging-http"># {{apacheSites}}/{{stagingHost}}.conf
-
-&lt;VirtualHost *:80&gt;
-    ServerName {{stagingHost}}
-
-    DocumentRoot {{stagingRoot}}/public
-
-    ErrorLog {{apacheLogs}}/{{domain}}-{{stagingPrefix}}-error.log
-    CustomLog {{apacheLogs}}/{{domain}}-{{stagingPrefix}}-access.log combined
-
-    SetEnv BADHAT_MODE staging
-
-    php_admin_value open_basedir "{{stagingRoot}}/app/:{{stagingRoot}}/add/:{{stagingRoot}}/public/:/tmp/"
-
-    Include {{apacheCreds}}/{{domain}}.conf
-    Include {{apacheBadhat}}/badhat-common.conf
-    Include {{apacheBadhat}}/badhat-staging.conf
-
-    &lt;Directory "{{stagingRoot}}/public"&gt;
-        Include {{apacheBadhat}}/badhat-directory.conf
-    &lt;/Directory&gt;
-&lt;/VirtualHost&gt;
-</template>
-
-<template id="tpl-staging-ssl"># {{apacheSites}}/{{stagingHost}}-le-ssl.conf
-
-&lt;IfModule mod_ssl.c&gt;
-&lt;VirtualHost *:443&gt;
-    ServerName {{stagingHost}}
-
-    DocumentRoot {{stagingRoot}}/public
-
-    ErrorLog {{apacheLogs}}/{{domain}}-{{stagingPrefix}}-ssl-error.log
-    CustomLog {{apacheLogs}}/{{domain}}-{{stagingPrefix}}-ssl-access.log combined
-
-    SetEnv BADHAT_MODE staging
-
-    php_admin_value open_basedir "{{stagingRoot}}/app/:{{stagingRoot}}/add/:{{stagingRoot}}/public/:/tmp/"
-
-    Include {{apacheCreds}}/{{domain}}.conf
-    Include {{apacheBadhat}}/badhat-common.conf
-    Include {{apacheBadhat}}/badhat-staging.conf
-
-    &lt;Directory "{{stagingRoot}}/public"&gt;
-        Include {{apacheBadhat}}/badhat-directory.conf
-    &lt;/Directory&gt;
-
-    Include /etc/letsencrypt/options-ssl-apache.conf
-    SSLCertificateFile /etc/letsencrypt/live/{{stagingHost}}/fullchain.pem
-    SSLCertificateKeyFile /etc/letsencrypt/live/{{stagingHost}}/privkey.pem
-&lt;/VirtualHost&gt;
-&lt;/IfModule&gt;
-</template>
 
 <template id="tpl-dev-http"># {{apacheSites}}/{{devHost}}.conf
 
-&lt;VirtualHost *:80&gt;
+<VirtualHost *:80>
     ServerName {{devHost}}
 
     DocumentRoot {{devRoot}}/public
 
-    ErrorLog {{apacheLogs}}/{{domain}}-{{devPrefix}}-error.log
-    CustomLog {{apacheLogs}}/{{domain}}-{{devPrefix}}-access.log combined
-
-    SetEnv BADHAT_MODE dev
+    ErrorLog {{apacheLogs}}/{{domain}}-{{devSuffix}}-error.log
+    CustomLog {{apacheLogs}}/{{domain}}-{{devSuffix}}-access.log combined
 
     php_admin_value open_basedir "{{devRoot}}/app/:{{devRoot}}/add/:{{devRoot}}/public/:/tmp/"
 
@@ -224,34 +111,103 @@
     Include {{apacheBadhat}}/badhat-common.conf
     Include {{apacheBadhat}}/badhat-dev.conf
 
-    &lt;Directory "{{devRoot}}/public"&gt;
+    <Directory "{{devRoot}}/public">
         Include {{apacheBadhat}}/badhat-directory.conf
-    &lt;/Directory&gt;
-&lt;/VirtualHost&gt;
+    </Directory>
+</VirtualHost>
 </template>
 
-<template id="tpl-release-commands">#!/usr/bin/env bash
+<template id="tpl-staging-http"># {{apacheSites}}/{{stagingHost}}.conf
+
+<VirtualHost *:80>
+    ServerName {{stagingHost}}
+
+    DocumentRoot {{stagingRoot}}/public
+
+    ErrorLog {{apacheLogs}}/{{domain}}-{{stagingPrefix}}-error.log
+    CustomLog {{apacheLogs}}/{{domain}}-{{stagingPrefix}}-access.log combined
+
+    php_admin_value open_basedir "{{stagingRoot}}/app/:{{stagingRoot}}/add/:{{stagingRoot}}/public/:/tmp/"
+
+    Include {{apacheCreds}}/{{domain}}.conf
+    Include {{apacheBadhat}}/badhat-common.conf
+    Include {{apacheBadhat}}/badhat-staging.conf
+
+    <Directory "{{stagingRoot}}/public">
+        Include {{apacheBadhat}}/badhat-directory.conf
+    </Directory>
+</VirtualHost>
+</template>
+
+<template id="tpl-staging-ssl"># {{apacheSites}}/{{stagingHost}}-le-ssl.conf
+
+<IfModule mod_ssl.c>
+<VirtualHost *:443>
+    ServerName {{stagingHost}}
+
+    DocumentRoot {{stagingRoot}}/public
+
+    ErrorLog {{apacheLogs}}/{{domain}}-{{stagingPrefix}}-ssl-error.log
+    CustomLog {{apacheLogs}}/{{domain}}-{{stagingPrefix}}-ssl-access.log combined
+
+    php_admin_value open_basedir "{{stagingRoot}}/app/:{{stagingRoot}}/add/:{{stagingRoot}}/public/:/tmp/"
+
+    Include {{apacheCreds}}/{{domain}}.conf
+    Include {{apacheBadhat}}/badhat-common.conf
+    Include {{apacheBadhat}}/badhat-staging.conf
+
+    <Directory "{{stagingRoot}}/public">
+        Include {{apacheBadhat}}/badhat-directory.conf
+    </Directory>
+
+    Include /etc/letsencrypt/options-ssl-apache.conf
+    SSLCertificateFile /etc/letsencrypt/live/{{stagingHost}}/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/{{stagingHost}}/privkey.pem
+</VirtualHost>
+</IfModule>
+</template>
+
+<template id="tpl-prod-ssl"># {{apacheSites}}/{{domain}}-le-ssl.conf
+
+<IfModule mod_ssl.c>
+<VirtualHost *:443>
+    ServerName {{domain}}
+{{serverAliases}}
+    DocumentRoot {{prodRoot}}/public
+
+    ErrorLog {{apacheLogs}}/{{domain}}-prod-ssl-error.log
+    CustomLog {{apacheLogs}}/{{domain}}-prod-ssl-access.log combined
+
+    php_admin_value open_basedir "{{prodRoot}}/app/:{{prodRoot}}/add/:{{prodRoot}}/public/:/tmp/"
+
+    Include {{apacheCreds}}/{{domain}}.conf
+    Include {{apacheBadhat}}/badhat-common.conf
+
+    <Directory "{{prodRoot}}/public">
+        Include {{apacheBadhat}}/badhat-directory.conf
+    </Directory>
+
+    Include /etc/letsencrypt/options-ssl-apache.conf
+    SSLCertificateFile /etc/letsencrypt/live/{{domain}}/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/{{domain}}/privkey.pem
+</VirtualHost>
+</IfModule>
+</template>
+
+<template id="tpl-release">#!/usr/bin/env bash
 set -euo pipefail
 
-# Create a release
 sudo mkdir -p "{{releaseRoot}}"
 sudo git clone "{{repo}}" "{{releasePath}}"
+
 cd "{{releasePath}}"
 sudo git checkout "{{gitRef}}"
 
-{{stagingReleaseCommands}}# Promote to production
-sudo ln -sfnT "{{releasePath}}" "{{prodRoot}}"
+{{stagingRelease}}sudo ln -sfnT "{{releasePath}}" "{{prodRoot}}"
+
 sudo apache2ctl configtest
 sudo systemctl reload apache2
 
-# Check current targets
 readlink -f "{{prodRoot}}"
-{{stagingTargetCheck}}
-
-# Check hosts
-{{stagingHostCheck}}curl -I "https://{{domain}}/"
+{{stagingCheck}}curl -I "https://{{domain}}/"
 </template>
-
-<script src="./generator.js" defer></script>
-</body>
-</html>
