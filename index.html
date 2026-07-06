@@ -8,7 +8,7 @@
 </head>
 <body>
 
-<main>
+  <main>
   <h1>BADHAT Apache Site Generator</h1>
   <p>Apache vhost generator. Environment-agnostic. No <code>SetEnv BADHAT_MODE</code>.</p>
 
@@ -105,7 +105,6 @@
   <section id="summary"></section>
   <section id="output"></section>
 </main>
-
 <template id="tpl-output-file">
   <article class="file">
     <h2>
@@ -118,136 +117,29 @@
     <pre><code data-content></code></pre>
   </article>
 </template>
+<template id="tpl-vhost">
+# {{apacheSites}}/{{fileName}}
 
-<template
-  id="tpl-dev-http"
-  data-file
-  data-checkbox="hasDevHttp"
-  data-title="Development HTTP"
-  data-name="{{devHost}}.conf"
-># {{apacheSites}}/{{devHost}}.conf
-
-&lt;VirtualHost *:80&gt;
-    ServerName {{devHost}}
-
-    Define ROOT {{devRoot}}
+{{sslOpen}}&lt;VirtualHost *:{{port}}&gt;
+    ServerName {{host}}
+{{serverAliasesBlock}}
+    Define ROOT {{root}}
     DocumentRoot ${ROOT}/public
 
-    ErrorLog {{devErrorLog}}
-    CustomLog {{devAccessLog}} combined
+    ErrorLog {{errorLog}}
+    CustomLog {{accessLog}} combined
 
     php_admin_value open_basedir "${ROOT}/app/:${ROOT}/add/:${ROOT}/public/:/tmp/"
 
     Include {{apacheCreds}}/{{domain}}.conf
     Include {{apacheBadhat}}/badhat-common.conf
-    Include {{apacheBadhat}}/badhat-dev.conf
-
+{{modeIncludeBlock}}
     &lt;Directory "${ROOT}/public"&gt;
         Include {{apacheBadhat}}/badhat-directory.conf
     &lt;/Directory&gt;
-&lt;/VirtualHost&gt;
-</template>
+{{sslBlock}}&lt;/VirtualHost&gt;
+{{sslClose}}</template>
 
-<template
-  id="tpl-staging-http"
-  data-file
-  data-checkbox="hasStagingHttp"
-  data-needs="stagingPrefix"
-  data-title="Staging HTTP"
-  data-name="{{stagingHost}}.conf"
-># {{apacheSites}}/{{stagingHost}}.conf
-
-&lt;VirtualHost *:80&gt;
-    ServerName {{stagingHost}}
-
-    Define ROOT {{stagingRoot}}
-    DocumentRoot ${ROOT}/public
-
-    ErrorLog {{apacheLogs}}/{{domain}}.staging.error.log
-    CustomLog {{apacheLogs}}/{{domain}}.staging.access.log combined
-
-    php_admin_value open_basedir "${ROOT}/app/:${ROOT}/add/:${ROOT}/public/:/tmp/"
-
-    Include {{apacheCreds}}/{{domain}}.conf
-    Include {{apacheBadhat}}/badhat-common.conf
-    Include {{apacheBadhat}}/badhat-staging.conf
-
-    &lt;Directory "${ROOT}/public"&gt;
-        Include {{apacheBadhat}}/badhat-directory.conf
-    &lt;/Directory&gt;
-&lt;/VirtualHost&gt;
-</template>
-
-<template
-  id="tpl-staging-ssl"
-  data-file
-  data-checkbox="hasStagingSsl"
-  data-needs="stagingPrefix"
-  data-title="Staging HTTPS"
-  data-name="{{stagingHost}}-le-ssl.conf"
-># {{apacheSites}}/{{stagingHost}}-le-ssl.conf
-
-&lt;IfModule mod_ssl.c&gt;
-&lt;VirtualHost *:443&gt;
-    ServerName {{stagingHost}}
-
-    Define ROOT {{stagingRoot}}
-    DocumentRoot ${ROOT}/public
-
-    ErrorLog {{apacheLogs}}/{{domain}}.staging.ssl.error.log
-    CustomLog {{apacheLogs}}/{{domain}}.staging.ssl.access.log combined
-
-    php_admin_value open_basedir "${ROOT}/app/:${ROOT}/add/:${ROOT}/public/:/tmp/"
-
-    Include {{apacheCreds}}/{{domain}}.conf
-    Include {{apacheBadhat}}/badhat-common.conf
-    Include {{apacheBadhat}}/badhat-staging.conf
-
-    &lt;Directory "${ROOT}/public"&gt;
-        Include {{apacheBadhat}}/badhat-directory.conf
-    &lt;/Directory&gt;
-
-    Include /etc/letsencrypt/options-ssl-apache.conf
-    SSLCertificateFile /etc/letsencrypt/live/{{stagingHost}}/fullchain.pem
-    SSLCertificateKeyFile /etc/letsencrypt/live/{{stagingHost}}/privkey.pem
-&lt;/VirtualHost&gt;
-&lt;/IfModule&gt;
-</template>
-
-<template
-  id="tpl-prod-ssl"
-  data-file
-  data-checkbox="hasProdSsl"
-  data-title="Production HTTPS"
-  data-name="{{domain}}-le-ssl.conf"
-># {{apacheSites}}/{{domain}}-le-ssl.conf
-
-&lt;IfModule mod_ssl.c&gt;
-&lt;VirtualHost *:443&gt;
-    ServerName {{domain}}
-{{serverAliases}}
-
-    Define ROOT {{prodRoot}}
-    DocumentRoot ${ROOT}/public
-
-    ErrorLog {{apacheLogs}}/{{domain}}.prod.ssl.error.log
-    CustomLog {{apacheLogs}}/{{domain}}.prod.ssl.access.log combined
-
-    php_admin_value open_basedir "${ROOT}/app/:${ROOT}/add/:${ROOT}/public/:/tmp/"
-
-    Include {{apacheCreds}}/{{domain}}.conf
-    Include {{apacheBadhat}}/badhat-common.conf
-
-    &lt;Directory "${ROOT}/public"&gt;
-        Include {{apacheBadhat}}/badhat-directory.conf
-    &lt;/Directory&gt;
-
-    Include /etc/letsencrypt/options-ssl-apache.conf
-    SSLCertificateFile /etc/letsencrypt/live/{{domain}}/fullchain.pem
-    SSLCertificateKeyFile /etc/letsencrypt/live/{{domain}}/privkey.pem
-&lt;/VirtualHost&gt;
-&lt;/IfModule&gt;
-</template>
 
 <template
   id="tpl-release"
@@ -272,7 +164,6 @@ sudo systemctl reload apache2
 readlink -f "{{prodRoot}}"
 {{stagingCheck}}curl -I "https://{{domain}}/"
 </template>
-
 <script src="./generator.js"></script>
 </body>
 </html>

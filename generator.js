@@ -77,7 +77,7 @@ function derivedModel(model) {
     devHost,
     devErrorLog: `${devLogBase}.error.log`,
     devAccessLog: `${devLogBase}.access.log`,
-    serverAliases: selected("hasWww") ? `    ServerAlias www.${model.domain}` : "",
+    serverAliasesBlock: selected("hasWww") ? `    ServerAlias www.${model.domain}` : "",
     stagingRelease: model.stagingPrefix
       ? `sudo ln -sfnT "${releasePath}" "${stagingRoot}"\n`
       : "",
@@ -127,6 +127,105 @@ function fill(text, data) {
   return text.replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (_, key) => data[key] ?? "");
 }
 
+function cleanOutput(text) {
+  return text
+    .replace(/\n{3,}/g, "\n\n")
+    .trim() + "\n";
+}
+
+function sslBlock(host) {
+  if (!host) return "";
+
+  return `
+    Include /etc/letsencrypt/options-ssl-apache.conf
+    SSLCertificateFile /etc/letsencrypt/live/${host}/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/${host}/privkey.pem
+`;
+}
+
+function vhost(data, options) {
+  const isSsl = Boolean(options.sslHost);
+
+  const model = {
+    ...data,
+    fileName: options.fileName,
+    port: isSsl ? "443" : "80",
+    host: options.host,
+    root: options.root,
+    errorLog: options.errorLog,
+    accessLog: options.accessLog,
+    serverAliasesBlock: options.serverAliasesBlock || "",
+    modeIncludeBlock: options.modeInclude
+      ? `    Include ${data.apacheBadhat}/${options.modeInclude}`
+      : "",
+    sslOpen: isSsl ? "<IfModule mod_ssl.c>\n" : "",
+    sslClose: isSsl ? "</IfModule>" : "",
+    sslBlock: sslBlock(options.sslHost)
+  };
+
+  return {
+    title: options.title,
+    name: options.fileName,
+    content: cleanOutput(fill($("tpl-vhost").content.textContent, model))
+  };
+}
+
+function vhostFiles(data) {
+  const result = [];
+
+  if (selected("hasDevHttp")) {
+    result.push(vhost(data, {
+      title: "Development HTTP",
+      fileName: `${data.devHost}.conf`,
+      host: data.devHost,
+      root: data.devRoot,
+      errorLog: data.devErrorLog,
+      accessLog: data.devAccessLog,
+      modeInclude: "badhat-dev.conf"
+    }));
+  }
+
+  if (selected("hasStagingHttp") && data.stagingPrefix) {
+    result.push(vhost(data, {
+      title: "Staging HTTP",
+      fileName: `${data.stagingHost}.conf`,
+      host: data.stagingHost,
+      root: data.stagingRoot,
+      errorLog: `${data.apacheLogs}/${data.domain}.staging.error.log`,
+      accessLog: `${data.apacheLogs}/${data.domain}.staging.access.log`,
+      modeInclude: "badhat-staging.conf"
+    }));
+  }
+
+  if (selected("hasStagingSsl") && data.stagingPrefix) {
+    result.push(vhost(data, {
+      title: "Staging HTTPS",
+      fileName: `${data.stagingHost}-le-ssl.conf`,
+      host: data.stagingHost,
+      root: data.stagingRoot,
+      errorLog: `${data.apacheLogs}/${data.domain}.staging.ssl.error.log`,
+      accessLog: `${data.apacheLogs}/${data.domain}.staging.ssl.access.log`,
+      modeInclude: "badhat-staging.conf",
+      sslHost: data.stagingHost
+    }));
+  }
+
+  if (selected("hasProdSsl")) {
+    result.push(vhost(data, {
+      title: "Production HTTPS",
+      fileName: `${data.domain}-le-ssl.conf`,
+      host: data.domain,
+      root: data.prodRoot,
+      errorLog: `${data.apacheLogs}/${data.domain}.prod.ssl.error.log`,
+      accessLog: `${data.apacheLogs}/${data.domain}.prod.ssl.access.log`,
+      serverAliasesBlock: data.serverAliasesBlock,
+      sslHost: data.domain
+    }));
+  }
+
+  return result;
+}
+
 function fileTemplates() {
   return $$("template[data-file]").map(template => ({
     template,
@@ -143,14 +242,21 @@ function fileIsEnabled(file, data) {
   return true;
 }
 
-function files(data) {
+function extraFiles(data) {
   return fileTemplates()
     .filter(file => fileIsEnabled(file, data))
     .map(file => ({
       title: fill(file.title, data),
       name: fill(file.name, data),
-      content: fill(file.template.content.textContent.trim(), data) + "\n"
+      content: cleanOutput(fill(file.template.content.textContent, data))
     }));
+}
+
+function files(data) {
+  return [
+    ...vhostFiles(data),
+    ...extraFiles(data)
+  ];
 }
 
 function renderValidation(errors) {
