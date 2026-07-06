@@ -1,35 +1,5 @@
 const $ = id => document.getElementById(id);
-
-const vhosts = [
-  {
-    checkbox: "hasDevHttp",
-    needsStaging: false,
-    title: "Development HTTP",
-    name: "{{devHost}}.conf",
-    template: "tpl-dev-http"
-  },
-  {
-    checkbox: "hasStagingHttp",
-    needsStaging: true,
-    title: "Staging HTTP",
-    name: "{{stagingHost}}.conf",
-    template: "tpl-staging-http"
-  },
-  {
-    checkbox: "hasStagingSsl",
-    needsStaging: true,
-    title: "Staging HTTPS",
-    name: "{{stagingHost}}-le-ssl.conf",
-    template: "tpl-staging-ssl"
-  },
-  {
-    checkbox: "hasProdSsl",
-    needsStaging: false,
-    title: "Production HTTPS",
-    name: "{{domain}}-le-ssl.conf",
-    template: "tpl-prod-ssl"
-  }
-];
+const $$ = selector => Array.from(document.querySelectorAll(selector));
 
 function cleanHost(value) {
   return value.trim().toLowerCase().replace(/^\.+|\.+$/g, "");
@@ -57,7 +27,7 @@ function validHostname(host) {
 }
 
 function selected(id) {
-  return $(id).checked;
+  return Boolean($(id)?.checked);
 }
 
 function rawModel() {
@@ -80,14 +50,18 @@ function derivedModel(model) {
   const prodRoot = `${model.webRoot}/${model.domain}.prod`;
   const releaseRoot = `${model.webRoot}/${model.domain}.releases`;
   const releasePath = `${releaseRoot}/${model.version}`;
+
   const stagingRoot = model.stagingPrefix
     ? `${model.webRoot}/${model.domain}.${model.stagingPrefix}`
     : "";
+
   const stagingHost = model.stagingPrefix
     ? `${model.stagingPrefix}.${model.domain}`
     : "";
+
   const devRoot = `${model.webRoot}/${model.domain}`;
   const devHost = `${model.domain}.${model.devSuffix}`;
+
   const devLogBase = selected("hasGlobalDevLog")
     ? `${model.apacheLogs}/${model.domain}.dev`
     : `${model.apacheLogs}/${model.domain}.${model.devSuffix}`;
@@ -137,74 +111,123 @@ function validate(model) {
   if (selected("hasReleaseCommands")) {
     if (!model.repo) errors.push(["repo", "Git repository is required."]);
     if (!model.gitRef) errors.push(["gitRef", "Git ref is required."]);
+
     if (!/^[a-zA-Z0-9._-]+$/.test(model.version)) {
-      errors.push(["version", "Release version may only contain letters, numbers, dots, underscores and hyphens."]);
+      errors.push([
+        "version",
+        "Release version may only contain letters, numbers, dots, underscores and hyphens."
+      ]);
     }
   }
 
   return errors;
 }
 
-function template(id) {
-  return $(id).content.textContent.trim();
-}
-
 function fill(text, data) {
   return text.replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (_, key) => data[key] ?? "");
 }
 
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+function fileTemplates() {
+  return $$("template[data-file]").map(template => ({
+    template,
+    checkbox: template.dataset.checkbox || "",
+    needs: template.dataset.needs || "",
+    title: template.dataset.title || "Generated file",
+    name: template.dataset.name || "generated.txt"
+  }));
+}
+
+function fileIsEnabled(file, data) {
+  if (file.checkbox && !selected(file.checkbox)) return false;
+  if (file.needs && !data[file.needs]) return false;
+  return true;
 }
 
 function files(data) {
-  const apacheFiles = vhosts
-    .filter(vhost => selected(vhost.checkbox))
-    .filter(vhost => !vhost.needsStaging || data.stagingPrefix)
-    .map(vhost => ({
-      title: vhost.title,
-      name: fill(vhost.name, data),
-      content: fill(template(vhost.template), data) + "\n"
+  return fileTemplates()
+    .filter(file => fileIsEnabled(file, data))
+    .map(file => ({
+      title: fill(file.title, data),
+      name: fill(file.name, data),
+      content: fill(file.template.content.textContent.trim(), data) + "\n"
     }));
-
-  const releaseFiles = selected("hasReleaseCommands")
-    ? [{
-        title: "Release commands",
-        name: `${data.domain}-release-commands.sh`,
-        content: fill(template("tpl-release"), data) + "\n"
-      }]
-    : [];
-
-  return [...apacheFiles, ...releaseFiles];
 }
 
 function renderValidation(errors) {
-  document.querySelectorAll("input").forEach(input => input.classList.remove("error"));
+  $$("input").forEach(input => input.classList.remove("error"));
 
   errors.forEach(([id]) => {
     const input = $(id);
     if (input) input.classList.add("error");
   });
 
-  $("validation").innerHTML = errors.length
-    ? `<div class="errors"><strong>Fix before using generated files</strong><ul>${errors.map(error => `<li>${escapeHtml(error[1])}</li>`).join("")}</ul></div>`
-    : "";
+  const target = $("validation");
+  target.replaceChildren();
+
+  if (!errors.length) return;
+
+  const box = document.createElement("div");
+  box.className = "errors";
+
+  const title = document.createElement("strong");
+  title.textContent = "Fix before using generated files";
+
+  const list = document.createElement("ul");
+
+  errors.forEach(([, message]) => {
+    const item = document.createElement("li");
+    item.textContent = message;
+    list.append(item);
+  });
+
+  box.append(title, list);
+  target.append(box);
+}
+
+function code(text) {
+  const element = document.createElement("code");
+  element.textContent = text;
+  return element;
+}
+
+function endpoint(label, url, path) {
+  const fragment = document.createDocumentFragment();
+
+  fragment.append(`${label}: `);
+  fragment.append(code(url));
+  fragment.append(" → ");
+  fragment.append(code(path));
+  fragment.append(document.createElement("br"));
+
+  return fragment;
+}
+
+function unavailable(label, text) {
+  const fragment = document.createDocumentFragment();
+  const em = document.createElement("em");
+
+  em.textContent = text;
+
+  fragment.append(`${label}: `, em, document.createElement("br"));
+
+  return fragment;
 }
 
 function renderSummary(data) {
-  const staging = data.stagingPrefix
-    ? `staging: <code>http://${escapeHtml(data.stagingHost)}</code> → <code>${escapeHtml(data.stagingRoot)}/public</code><br>`
-    : `staging: <em>not generated</em><br>`;
+  const target = $("summary");
+  const title = document.createElement("strong");
 
-  $("summary").innerHTML = `
-    <strong>Generated model</strong><br>
-    dev: <code>http://${escapeHtml(data.devHost)}</code> → <code>${escapeHtml(data.devRoot)}/public</code><br>
-    ${staging}
-    prod: <code>https://${escapeHtml(data.domain)}</code> → <code>${escapeHtml(data.prodRoot)}/public</code>
-  `;
+  title.textContent = "Generated model";
+
+  target.replaceChildren(
+    title,
+    document.createElement("br"),
+    endpoint("dev", `http://${data.devHost}`, `${data.devRoot}/public`),
+    data.stagingPrefix
+      ? endpoint("staging", `http://${data.stagingHost}`, `${data.stagingRoot}/public`)
+      : unavailable("staging", "not generated"),
+    endpoint("prod", `https://${data.domain}`, `${data.prodRoot}/public`)
+  );
 }
 
 function copyText(text) {
@@ -212,25 +235,26 @@ function copyText(text) {
 }
 
 function renderOutput(fileList) {
-  $("output").innerHTML = fileList.map((file, index) => `
-    <article class="file">
-      <h2>
-        <span>
-          ${escapeHtml(file.title)}<br>
-          <small>${escapeHtml(file.name)}</small>
-        </span>
-        <button type="button" data-copy="${index}" title="Copy">⧉</button>
-      </h2>
-      <pre><code>${escapeHtml(file.content)}</code></pre>
-    </article>
-  `).join("");
+  const target = $("output");
+  const template = $("tpl-output-file");
 
-  document.querySelectorAll("[data-copy]").forEach(button => {
+  target.replaceChildren();
+
+  fileList.forEach(file => {
+    const article = template.content.firstElementChild.cloneNode(true);
+    const button = article.querySelector("button");
+
+    article.querySelector("[data-title]").textContent = file.title;
+    article.querySelector("[data-name]").textContent = file.name;
+    article.querySelector("[data-content]").textContent = file.content;
+
     button.addEventListener("click", () => {
-      copyText(fileList[Number(button.dataset.copy)].content);
+      copyText(file.content);
       button.textContent = "Copied";
       setTimeout(() => button.textContent = "⧉", 900);
     });
+
+    target.append(article);
   });
 }
 
@@ -241,12 +265,13 @@ function render() {
   renderValidation(errors);
 
   if (errors.length) {
-    $("summary").innerHTML = "";
-    $("output").innerHTML = "";
+    $("summary").replaceChildren();
+    $("output").replaceChildren();
     return;
   }
 
   const data = derivedModel(base);
+
   renderSummary(data);
   renderOutput(files(data));
 }
@@ -255,7 +280,7 @@ if (!$("version").value.trim()) {
   $("version").value = todayVersion();
 }
 
-document.querySelectorAll("input").forEach(input => {
+$$("input").forEach(input => {
   input.addEventListener("input", render);
   input.addEventListener("change", render);
 });

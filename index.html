@@ -106,7 +106,26 @@
   <section id="output"></section>
 </main>
 
-<template id="tpl-dev-http"># {{apacheSites}}/{{devHost}}.conf
+<template id="tpl-output-file">
+  <article class="file">
+    <h2>
+      <span>
+        <b data-title></b><br>
+        <small data-name></small>
+      </span>
+      <button type="button" title="Copy">⧉</button>
+    </h2>
+    <pre><code data-content></code></pre>
+  </article>
+</template>
+
+<template
+  id="tpl-dev-http"
+  data-file
+  data-checkbox="hasDevHttp"
+  data-title="Development HTTP"
+  data-name="{{devHost}}.conf"
+># {{apacheSites}}/{{devHost}}.conf
 
 &lt;VirtualHost *:80&gt;
     ServerName {{devHost}}
@@ -129,7 +148,14 @@
 &lt;/VirtualHost&gt;
 </template>
 
-<template id="tpl-staging-http"># {{apacheSites}}/{{stagingHost}}.conf
+<template
+  id="tpl-staging-http"
+  data-file
+  data-checkbox="hasStagingHttp"
+  data-needs="stagingPrefix"
+  data-title="Staging HTTP"
+  data-name="{{stagingHost}}.conf"
+># {{apacheSites}}/{{stagingHost}}.conf
 
 &lt;VirtualHost *:80&gt;
     ServerName {{stagingHost}}
@@ -152,7 +178,14 @@
 &lt;/VirtualHost&gt;
 </template>
 
-<template id="tpl-staging-ssl"># {{apacheSites}}/{{stagingHost}}-le-ssl.conf
+<template
+  id="tpl-staging-ssl"
+  data-file
+  data-checkbox="hasStagingSsl"
+  data-needs="stagingPrefix"
+  data-title="Staging HTTPS"
+  data-name="{{stagingHost}}-le-ssl.conf"
+># {{apacheSites}}/{{stagingHost}}-le-ssl.conf
 
 &lt;IfModule mod_ssl.c&gt;
 &lt;VirtualHost *:443&gt;
@@ -181,7 +214,13 @@
 &lt;/IfModule&gt;
 </template>
 
-<template id="tpl-prod-ssl"># {{apacheSites}}/{{domain}}-le-ssl.conf
+<template
+  id="tpl-prod-ssl"
+  data-file
+  data-checkbox="hasProdSsl"
+  data-title="Production HTTPS"
+  data-name="{{domain}}-le-ssl.conf"
+># {{apacheSites}}/{{domain}}-le-ssl.conf
 
 &lt;IfModule mod_ssl.c&gt;
 &lt;VirtualHost *:443&gt;
@@ -210,7 +249,13 @@
 &lt;/IfModule&gt;
 </template>
 
-<template id="tpl-release">#!/usr/bin/env bash
+<template
+  id="tpl-release"
+  data-file
+  data-checkbox="hasReleaseCommands"
+  data-title="Release commands"
+  data-name="{{domain}}-release-commands.sh"
+>#!/usr/bin/env bash
 set -euo pipefail
 
 sudo mkdir -p "{{releaseRoot}}"
