@@ -4,24 +4,28 @@ const vhosts = [
   {
     checkbox: "hasDevHttp",
     needsStaging: false,
+    title: "Development HTTP",
     name: "{{devHost}}.conf",
     template: "tpl-dev-http"
   },
   {
     checkbox: "hasStagingHttp",
     needsStaging: true,
+    title: "Staging HTTP",
     name: "{{stagingHost}}.conf",
     template: "tpl-staging-http"
   },
   {
     checkbox: "hasStagingSsl",
     needsStaging: true,
+    title: "Staging HTTPS",
     name: "{{stagingHost}}-le-ssl.conf",
     template: "tpl-staging-ssl"
   },
   {
     checkbox: "hasProdSsl",
     needsStaging: false,
+    title: "Production HTTPS",
     name: "{{domain}}-le-ssl.conf",
     template: "tpl-prod-ssl"
   }
@@ -84,6 +88,9 @@ function derivedModel(model) {
     : "";
   const devRoot = `${model.webRoot}/${model.domain}`;
   const devHost = `${model.domain}.${model.devSuffix}`;
+  const devLogBase = selected("hasGlobalDevLog")
+    ? `${model.apacheLogs}/${model.domain}.dev`
+    : `${model.apacheLogs}/${model.domain}.${model.devSuffix}`;
 
   return {
     ...model,
@@ -94,6 +101,8 @@ function derivedModel(model) {
     stagingHost,
     devRoot,
     devHost,
+    devErrorLog: `${devLogBase}.error.log`,
+    devAccessLog: `${devLogBase}.access.log`,
     serverAliases: selected("hasWww") ? `    ServerAlias www.${model.domain}` : "",
     stagingRelease: model.stagingPrefix
       ? `sudo ln -sfnT "${releasePath}" "${stagingRoot}"\n`
@@ -156,12 +165,14 @@ function files(data) {
     .filter(vhost => selected(vhost.checkbox))
     .filter(vhost => !vhost.needsStaging || data.stagingPrefix)
     .map(vhost => ({
+      title: vhost.title,
       name: fill(vhost.name, data),
       content: fill(template(vhost.template), data) + "\n"
     }));
 
   const releaseFiles = selected("hasReleaseCommands")
     ? [{
+        title: "Release commands",
         name: `${data.domain}-release-commands.sh`,
         content: fill(template("tpl-release"), data) + "\n"
       }]
@@ -204,8 +215,11 @@ function renderOutput(fileList) {
   $("output").innerHTML = fileList.map((file, index) => `
     <article class="file">
       <h2>
-        <span>${escapeHtml(file.name)}</span>
-        <button type="button" data-copy="${index}">Copy</button>
+        <span>
+          ${escapeHtml(file.title)}<br>
+          <small>${escapeHtml(file.name)}</small>
+        </span>
+        <button type="button" data-copy="${index}" title="Copy">⧉</button>
       </h2>
       <pre><code>${escapeHtml(file.content)}</code></pre>
     </article>
@@ -215,7 +229,7 @@ function renderOutput(fileList) {
     button.addEventListener("click", () => {
       copyText(fileList[Number(button.dataset.copy)].content);
       button.textContent = "Copied";
-      setTimeout(() => button.textContent = "Copy", 900);
+      setTimeout(() => button.textContent = "⧉", 900);
     });
   });
 }

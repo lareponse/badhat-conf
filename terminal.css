@@ -29,7 +29,8 @@ h1 {
   letter-spacing: -.06em;
 }
 
-p, label {
+p,
+label {
   color: var(--muted);
 }
 
@@ -137,6 +138,11 @@ button:hover {
   padding-bottom: .5rem;
   border-bottom: 1px solid var(--line);
   font-size: .9rem;
+}
+
+h2 small {
+  color: var(--muted);
+  font-weight: 400;
 }
 
 pre {

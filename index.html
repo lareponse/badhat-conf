@@ -63,6 +63,7 @@
       <label class="check"><input id="hasStagingHttp" type="checkbox" checked> Staging HTTP</label>
       <label class="check"><input id="hasStagingSsl" type="checkbox"> Staging HTTPS</label>
       <label class="check"><input id="hasProdSsl" type="checkbox" checked> Production HTTPS</label>
+      <label class="check"><input id="hasGlobalDevLog" type="checkbox" checked> global dev log</label>
     </fieldset>
 
     <fieldset>
@@ -97,101 +98,106 @@
 
 <template id="tpl-dev-http"># {{apacheSites}}/{{devHost}}.conf
 
-<VirtualHost *:80>
+&lt;VirtualHost *:80&gt;
     ServerName {{devHost}}
 
-    DocumentRoot {{devRoot}}/public
+    Define ROOT {{devRoot}}
+    DocumentRoot ${ROOT}/public
 
-    ErrorLog {{apacheLogs}}/{{domain}}-{{devSuffix}}-error.log
-    CustomLog {{apacheLogs}}/{{domain}}-{{devSuffix}}-access.log combined
+    ErrorLog {{devErrorLog}}
+    CustomLog {{devAccessLog}} combined
 
-    php_admin_value open_basedir "{{devRoot}}/app/:{{devRoot}}/add/:{{devRoot}}/public/:/tmp/"
+    php_admin_value open_basedir "${ROOT}/app/:${ROOT}/add/:${ROOT}/public/:/tmp/"
 
     Include {{apacheCreds}}/{{domain}}.conf
     Include {{apacheBadhat}}/badhat-common.conf
     Include {{apacheBadhat}}/badhat-dev.conf
 
-    <Directory "{{devRoot}}/public">
+    &lt;Directory "${ROOT}/public"&gt;
         Include {{apacheBadhat}}/badhat-directory.conf
-    </Directory>
-</VirtualHost>
+    &lt;/Directory&gt;
+&lt;/VirtualHost&gt;
 </template>
 
 <template id="tpl-staging-http"># {{apacheSites}}/{{stagingHost}}.conf
 
-<VirtualHost *:80>
+&lt;VirtualHost *:80&gt;
     ServerName {{stagingHost}}
 
-    DocumentRoot {{stagingRoot}}/public
+    Define ROOT {{stagingRoot}}
+    DocumentRoot ${ROOT}/public
 
-    ErrorLog {{apacheLogs}}/{{domain}}-{{stagingPrefix}}-error.log
-    CustomLog {{apacheLogs}}/{{domain}}-{{stagingPrefix}}-access.log combined
+    ErrorLog {{apacheLogs}}/{{domain}}.staging.error.log
+    CustomLog {{apacheLogs}}/{{domain}}.staging.access.log combined
 
-    php_admin_value open_basedir "{{stagingRoot}}/app/:{{stagingRoot}}/add/:{{stagingRoot}}/public/:/tmp/"
+    php_admin_value open_basedir "${ROOT}/app/:${ROOT}/add/:${ROOT}/public/:/tmp/"
 
     Include {{apacheCreds}}/{{domain}}.conf
     Include {{apacheBadhat}}/badhat-common.conf
     Include {{apacheBadhat}}/badhat-staging.conf
 
-    <Directory "{{stagingRoot}}/public">
+    &lt;Directory "${ROOT}/public"&gt;
         Include {{apacheBadhat}}/badhat-directory.conf
-    </Directory>
-</VirtualHost>
+    &lt;/Directory&gt;
+&lt;/VirtualHost&gt;
 </template>
 
 <template id="tpl-staging-ssl"># {{apacheSites}}/{{stagingHost}}-le-ssl.conf
 
-<IfModule mod_ssl.c>
-<VirtualHost *:443>
+&lt;IfModule mod_ssl.c&gt;
+&lt;VirtualHost *:443&gt;
     ServerName {{stagingHost}}
 
-    DocumentRoot {{stagingRoot}}/public
+    Define ROOT {{stagingRoot}}
+    DocumentRoot ${ROOT}/public
 
-    ErrorLog {{apacheLogs}}/{{domain}}-{{stagingPrefix}}-ssl-error.log
-    CustomLog {{apacheLogs}}/{{domain}}-{{stagingPrefix}}-ssl-access.log combined
+    ErrorLog {{apacheLogs}}/{{domain}}.staging.ssl.error.log
+    CustomLog {{apacheLogs}}/{{domain}}.staging.ssl.access.log combined
 
-    php_admin_value open_basedir "{{stagingRoot}}/app/:{{stagingRoot}}/add/:{{stagingRoot}}/public/:/tmp/"
+    php_admin_value open_basedir "${ROOT}/app/:${ROOT}/add/:${ROOT}/public/:/tmp/"
 
     Include {{apacheCreds}}/{{domain}}.conf
     Include {{apacheBadhat}}/badhat-common.conf
     Include {{apacheBadhat}}/badhat-staging.conf
 
-    <Directory "{{stagingRoot}}/public">
+    &lt;Directory "${ROOT}/public"&gt;
         Include {{apacheBadhat}}/badhat-directory.conf
-    </Directory>
+    &lt;/Directory&gt;
 
     Include /etc/letsencrypt/options-ssl-apache.conf
     SSLCertificateFile /etc/letsencrypt/live/{{stagingHost}}/fullchain.pem
     SSLCertificateKeyFile /etc/letsencrypt/live/{{stagingHost}}/privkey.pem
-</VirtualHost>
-</IfModule>
+&lt;/VirtualHost&gt;
+&lt;/IfModule&gt;
 </template>
 
 <template id="tpl-prod-ssl"># {{apacheSites}}/{{domain}}-le-ssl.conf
 
-<IfModule mod_ssl.c>
-<VirtualHost *:443>
+&lt;IfModule mod_ssl.c&gt;
+&lt;VirtualHost *:443&gt;
     ServerName {{domain}}
 {{serverAliases}}
-    DocumentRoot {{prodRoot}}/public
 
-    ErrorLog {{apacheLogs}}/{{domain}}-prod-ssl-error.log
-    CustomLog {{apacheLogs}}/{{domain}}-prod-ssl-access.log combined
+    Define ROOT {{prodRoot}}
+    DocumentRoot ${ROOT}/public
 
-    php_admin_value open_basedir "{{prodRoot}}/app/:{{prodRoot}}/add/:{{prodRoot}}/public/:/tmp/"
+    ErrorLog {{apacheLogs}}/{{domain}}.prod.ssl.error.log
+    CustomLog {{apacheLogs}}/{{domain}}.prod.ssl.access.log combined
+
+    php_admin_value open_basedir "${ROOT}/app/:${ROOT}/add/:${ROOT}/public/:/tmp/"
 
     Include {{apacheCreds}}/{{domain}}.conf
     Include {{apacheBadhat}}/badhat-common.conf
 
-    <Directory "{{prodRoot}}/public">
+    &lt;Directory "${ROOT}/public"&gt;
         Include {{apacheBadhat}}/badhat-directory.conf
-    </Directory>
+    &lt;/Directory&gt;
 
     Include /etc/letsencrypt/options-ssl-apache.conf
     SSLCertificateFile /etc/letsencrypt/live/{{domain}}/fullchain.pem
     SSLCertificateKeyFile /etc/letsencrypt/live/{{domain}}/privkey.pem
-</VirtualHost>
-</IfModule>
+&lt;/VirtualHost&gt;
+&lt;/IfModule&gt;
 </template>
 
 <template id="tpl-release">#!/usr/bin/env bash
