@@ -1,3 +1,13 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BADHAT Apache Site Generator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
 <main>
   <h1>BADHAT Apache Site Generator</h1>
   <p>Apache vhost generator. Environment-agnostic. No <code>SetEnv BADHAT_MODE</code>.</p>
@@ -217,3 +227,7 @@ sudo systemctl reload apache2
 readlink -f "{{prodRoot}}"
 {{stagingCheck}}curl -I "https://{{domain}}/"
 </template>
+
+<script src="script.js"></script>
+</body>
+</html>
